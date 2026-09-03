@@ -1,0 +1,15 @@
+{
+  "video_directory": "/mnt/fitness-media/videos",
+  "sheets": {
+    "spreadsheet_id": "1HYfVOL1ksEItPQ0E-o9ck3Y-vkFe9AY29xZbqzlWihs",
+    "range": "Sheet1!A1:Z100",
+    "credentials_file": "credentials.json",
+    "refresh_seconds": 5
+  },
+  "youtube": {
+    "search_terms": ["workout music", "running music", "fitness music", "gym music"],
+    "brave_binary": "brave-browser",
+    "brave_profile": "/home/pi/.config/fitness-brave",
+    "debugging_port": 9222
+  }
+}

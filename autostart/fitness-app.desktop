@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Fitness App
+Comment=Fullscreen fitness kiosk
+Exec=/opt/fitness-app/.venv/bin/python /opt/fitness-app/fitness_app.py
+Terminal=false
+X-GNOME-Autostart-enabled=true
+OnlyShowIn=WAYFIRE;LXQt;LXDE;

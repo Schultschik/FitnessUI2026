@@ -1,0 +1,8 @@
+__pycache__/
+.win-venv/
+.wsl-venv/
+*.py[cod]
+credentials.json
+config.json
+state.json
+fitness-app.log
