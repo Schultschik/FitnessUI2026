@@ -2,7 +2,8 @@
 Type=Application
 Name=Fitness App
 Comment=Fullscreen fitness kiosk
-Exec=/opt/fitness-app/.venv/bin/python /opt/fitness-app/fitness_app.py
+Exec=/opt/fitness-app/launch-pi.sh
+Path=/opt/fitness-app
+TryExec=/opt/fitness-app/launch-pi.sh
 Terminal=false
 X-GNOME-Autostart-enabled=true
-OnlyShowIn=WAYFIRE;LXQt;LXDE;

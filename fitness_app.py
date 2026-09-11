@@ -192,10 +192,14 @@ class Kiosk(QMainWindow):
         scroll = QScrollArea(); scroll.setWidgetResizable(True); scroll.setFrameShape(QFrame.NoFrame)
         content = QWidget(); videos_layout = QVBoxLayout(content); videos_layout.setSpacing(14)
         directory = Path(self.cfg["video_directory"])
-        if not self.video_order_initialized:
-            self.videos = list(directory.glob("*.mp4")) if directory.is_dir() else []
-            random.shuffle(self.videos)
-            self.video_order_initialized = True
+        available = {p for p in directory.iterdir() if p.is_file() and p.suffix.lower() == ".mp4"} if directory.is_dir() else set()
+        # Preserve this session's order, but pick up shared-folder uploads on return.
+        existing = self.videos if self.video_order_initialized else []
+        self.videos = [p for p in existing if p in available]
+        added = sorted(available.difference(self.videos))
+        random.shuffle(added)
+        self.videos.extend(added)
+        self.video_order_initialized = True
         self.video_cards = []
         if not self.videos:
             empty = QLabel(f"No MP4 files found in\n{directory}"); empty.setObjectName("empty"); empty.setAlignment(Qt.AlignCenter); videos_layout.addWidget(empty)
