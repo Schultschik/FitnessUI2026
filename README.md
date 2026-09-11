@@ -53,6 +53,10 @@ Copy MP4 files into the share, wait for the copy to finish, then reopen Fitness 
 
 ## Current Pi Deployment
 
+### Remote Desktop
+
+WayVNC is enabled for the labwc desktop with `sudo raspi-config nonint do_vnc 0`. It starts at boot on TCP port 5900, with authentication enabled through PAM. Connect a WayVNC-compatible viewer to `fitnessui:5900` (currently `192.168.1.201:5900`) using the Pi account `stefan` and its password. Check `systemctl status wayvnc` if the desktop is unavailable. No router port forwarding is configured.
+
 The installation at `/opt/fitness-app` runs as `stefan` on Raspberry Pi OS Trixie/labwc. The source checkout is `/home/stefan/FitnessUI2026`. HDMI-A-1 is rotated 90 degrees, giving a 1080x1920 desktop. Desktop automatic login launches the user's XDG autostart entry.
 
 The Pi boots from the TEAM 512 GB NVMe on an X1002 shield. Existing settings are `dtparam=pciex1`, `dtparam=pciex1_gen=2`, EEPROM `BOOT_ORDER=0xf416` and `PCIE_PROBE=1`. The prior NVMe stability workaround is `nvme_core.default_ps_max_latency_us=0 pcie_aspm=off pcie_port_pm=off` on the single kernel command line. Wi-Fi power saving is disabled in its NetworkManager connection profile. These hardware settings are separate from the app installer; retain the official Pi power supply.
