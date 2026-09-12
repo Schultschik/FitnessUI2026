@@ -63,7 +63,11 @@ The Pi boots from the TEAM 512 GB NVMe on an X1002 shield. Existing settings are
 
 Run `QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests -v` on the Pi for configuration preservation, menu navigation, portrait layout, missing-credentials handling, and shared-video refresh checks. GPIO is mocked in these tests; physical button wiring still needs a hardware check.
 
-Ad blocking is not guaranteed because YouTube and browser extensions change; YouTube Premium is the reliable official ad-free option.
+The installer automatically installs the official uBlock Origin Lite extension (`ddkjiahejlhfcafbddmgiahcphecmpfh`) from the Chrome Web Store through `/etc/brave/policies/managed/fitness-kiosk.json`. Brave keeps it updated. The extension uses Optimal filtering and suppresses its first-run page; it is normally installed, not force-locked against disabling. Existing Brave Shields remain enabled. Ad blocking can vary as YouTube changes.
+
+Selecting a video or playlist starts playback and automatically enters player fullscreen. Play/Pause and Home remain visible inside fullscreen. Up/Down switches between those two controls, and Select activates the highlighted control. Home pauses playback, closes the kiosk Brave process group, and restores the Fitness home screen. The Home button also works with a mouse or VNC. In search results, Home is the last item in the Up/Down selection ring; keyboard Escape or H also returns Home.
+
+The app reinstalls its YouTube controls across navigation and page reloads. Closing Brave manually also restores the home screen. Browser control uses a loopback-only debugging port with a restricted WebSocket origin. The browser profile's encrypted desktop keyring is preserved: after automatic login, it may need to be unlocked with its own password before YouTube can load. The app does not store that password or weaken the real profile's password storage.
 
 ## Notes
 

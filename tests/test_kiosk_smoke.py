@@ -2,7 +2,7 @@
 import unittest
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from PyQt5.QtWidgets import QApplication
 
@@ -72,6 +72,43 @@ class KioskSmokeTests(unittest.TestCase):
             first.unlink()
             self.window.video_view()
             self.assertEqual(self.window.videos, [uploaded])
+
+    def test_youtube_home_stops_browser_and_restores_kiosk(self):
+        process = Mock(pid=987654)
+        self.window.brave = process
+        self.window.browser_mode = True
+        self.window.youtube_timer.start(750)
+        with patch.object(fitness_app.os, 'killpg') as kill:
+            self.window.close_youtube()
+        kill.assert_called_once_with(987654, fitness_app.signal.SIGTERM)
+        self.assertFalse(self.window.youtube_timer.isActive())
+        self.assertFalse(self.window.browser_mode)
+        self.assertIsNone(self.window.brave)
+        self.assertEqual(self.window.current_view, 'home')
+        self.assertTrue(self.window.isVisible())
+
+    def test_youtube_browser_exit_restores_kiosk(self):
+        self.window.browser_mode = True
+        self.window.brave = Mock()
+        self.window.brave.poll.return_value = 0
+        with patch.object(self.window, 'close_youtube') as close:
+            self.window.install_youtube_navigation()
+        close.assert_called_once()
+
+    def test_youtube_home_request_is_handled(self):
+        self.window.browser_mode = True
+        self.window.brave = Mock()
+        self.window.brave.poll.return_value = None
+        with patch.object(self.window, 'browser_eval', return_value={'homeRequested': True}), patch.object(self.window, 'close_youtube') as close:
+            self.window.install_youtube_navigation()
+        close.assert_called_once()
+        self.window.brave = None
+
+    def test_missing_browser_keeps_home_visible(self):
+        with patch.object(fitness_app.subprocess, 'Popen', side_effect=FileNotFoundError):
+            self.window.youtube_view()
+        self.assertFalse(self.window.browser_mode)
+        self.assertTrue(self.window.isVisible())
 
 
 if __name__ == '__main__':

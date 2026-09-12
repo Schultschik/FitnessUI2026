@@ -31,7 +31,8 @@ if ! command -v brave-browser >/dev/null; then
     apt-get -o Acquire::Retries=3 install -y brave-browser
 fi
 install -d -o "$USER_NAME" -g "$USER_GROUP" "$APP_DIR"
-install -o "$USER_NAME" -g "$USER_GROUP" -m 644 fitness_app.py config.example.json requirements.txt "$APP_DIR/"
+install -o "$USER_NAME" -g "$USER_GROUP" -m 644 fitness_app.py youtube_navigation.js config.example.json requirements.txt "$APP_DIR/"
+install -Dm644 brave-kiosk-policy.json /etc/brave/policies/managed/fitness-kiosk.json
 install -o "$USER_NAME" -g "$USER_GROUP" -m 755 launch-pi.sh "$APP_DIR/"
 if [[ -f credentials.json ]]; then
     install -o "$USER_NAME" -g "$USER_GROUP" -m 600 credentials.json "$APP_DIR/credentials.json"

@@ -124,6 +124,9 @@ class Kiosk(QMainWindow):
         self.mpv_socket = "/tmp/fitness-mpv.sock"
         self.brave = None
         self.browser_mode = False
+        self.youtube_timer = QTimer(self)
+        self.youtube_timer.timeout.connect(self.install_youtube_navigation)
+        self.youtube_script = (APP_DIR / 'youtube_navigation.js').read_text()
         self.cursor_timer = QTimer(self); self.cursor_timer.setSingleShot(True)
         self.cursor_timer.timeout.connect(lambda: self.setCursor(Qt.BlankCursor))
         self.setWindowTitle("Fitness")
@@ -291,27 +294,65 @@ class Kiosk(QMainWindow):
         term = random.choice(self.cfg["youtube"]["search_terms"])
         url = "https://www.youtube.com/results?search_query=" + urllib.parse.quote_plus(term)
         opts = self.cfg["youtube"]
-        command = [opts.get("brave_binary", "brave-browser"), "--kiosk", f"--remote-debugging-port={opts.get('debugging_port', 9222)}", "--remote-allow-origins=*", f"--user-data-dir={opts.get('brave_profile')}", url]
-        self.brave = subprocess.Popen(command)
+        command = [opts.get("brave_binary", "brave-browser"), "--kiosk", "--no-first-run", "--no-default-browser-check", "--autoplay-policy=no-user-gesture-required", "--remote-debugging-address=127.0.0.1", f"--remote-debugging-port={opts.get('debugging_port', 9222)}", "--remote-allow-origins=http://localhost", f"--user-data-dir={opts.get('brave_profile')}", url]
+        try:
+            self.brave = subprocess.Popen(command, start_new_session=True)
+        except OSError:
+            logging.exception('Could not start Brave')
+            return
         self.browser_mode = True
         self.hide()
-        QTimer.singleShot(6000, self.install_youtube_navigation)
+        self.youtube_timer.start(750)
 
     def browser_eval(self, source):
         try:
             port = self.cfg["youtube"].get("debugging_port", 9222)
             tabs = json.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}/json", timeout=1).read())
-            tab = next(t for t in tabs if t.get("type") == "page" and "youtube" in t.get("url", ""))
+            tab = next(t for t in tabs if t.get("type") == "page" and urllib.parse.urlparse(t.get("url", "")).hostname in ('www.youtube.com', 'youtube.com', 'music.youtube.com'))
             import websocket
-            ws = websocket.create_connection(tab["webSocketDebuggerUrl"], timeout=2, origin="http://localhost")
-            ws.send(json.dumps({"id": 1, "method": "Runtime.evaluate", "params": {"expression": source}})); ws.close()
-        except Exception as exc: logging.warning("Brave control unavailable: %s", exc)
+            ws = websocket.create_connection(tab["webSocketDebuggerUrl"], timeout=1, origin="http://localhost")
+            try:
+                ws.send(json.dumps({"id": 1, "method": "Runtime.evaluate", "params": {"expression": source, "returnByValue": True, "userGesture": True}}))
+                while True:
+                    response = json.loads(ws.recv())
+                    if response.get('id') == 1:
+                        return response.get('result', {}).get('result', {}).get('value')
+            finally:
+                ws.close()
+        except Exception as exc: logging.debug("Brave control unavailable: %s", exc)
 
     def install_youtube_navigation(self):
-        self.browser_eval("""(() => { if(window.__fitnessNav)return; window.__fitnessNav=1; let i=0; const cards=()=>[...document.querySelectorAll('a#video-title')].filter(x=>x.offsetParent); const mark=()=>cards().forEach((x,n)=>{x.style.outline=n===i?'5px solid #42e8b6':'';x.style.outlineOffset='5px'}); document.addEventListener('keydown',e=>{const p=location.pathname.includes('/watch'); if(p){if(e.key==='Enter'||e.key===' '){e.preventDefault();document.querySelector('video')?.click()}else if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();history.back()}return} if(e.key==='ArrowDown'){e.preventDefault();i=Math.min(i+1,cards().length-1);mark()} if(e.key==='ArrowUp'){e.preventDefault();i=Math.max(i-1,0);mark()} if(e.key==='Enter'){e.preventDefault();cards()[i]?.click()}}); mark() })()""")
+        if not self.browser_mode:
+            return
+        if self.brave and self.brave.poll() is not None:
+            self.close_youtube()
+            return
+        state = self.browser_eval(self.youtube_script)
+        if isinstance(state, dict) and state.get('homeRequested'):
+            self.close_youtube()
 
     def browser_key(self, key):
-        self.browser_eval("document.dispatchEvent(new KeyboardEvent('keydown',{key:'%s',bubbles:true}));" % key)
+        self.browser_eval("window.__fitnessKiosk?.key(%s);" % json.dumps(key))
+
+    def close_youtube(self):
+        self.youtube_timer.stop()
+        self.browser_mode = False
+        if self.brave:
+            process = self.brave
+            try: os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError: pass
+            QTimer.singleShot(2000, lambda: self.finish_brave(process))
+            self.brave = None
+        self.home_view()
+        self.showFullScreen()
+        self.raise_()
+        self.activateWindow()
+
+    @staticmethod
+    def finish_brave(process):
+        if process.poll() is None:
+            try: os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError: pass
 
     def play_video(self, video, resume=False):
         position = self.state["positions"].get(str(video), 0) if resume else 0
@@ -408,8 +449,11 @@ class Kiosk(QMainWindow):
                     self.play_video(video)
 
     def closeEvent(self, event):
+        self.youtube_timer.stop()
         self.gpio.close()
-        if self.brave and self.brave.poll() is None: self.brave.terminate()
+        if self.brave and self.brave.poll() is None:
+            try: os.killpg(self.brave.pid, signal.SIGTERM)
+            except ProcessLookupError: pass
         if self.mpv and self.mpv.poll() is None: self.mpv.terminate()
         event.accept()
 
